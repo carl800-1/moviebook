@@ -1,0 +1,51 @@
+# B站配置
+bilibili:
+  # 关注的 UP 主 UID 列表
+  up_uids:
+    - 123456789
+    - 987654321
+  # B站 Cookie（用于访问评论和弹幕，从浏览器开发者工具获取）
+  cookie: ""
+  # 每次扫描的最大视频数
+  max_videos_per_user: 20
+  # 是否采集弹幕
+  fetch_danmaku: true
+  # 是否采集评论
+  fetch_comments: true
+  # 评论最大数量
+  max_comments_per_video: 100
+
+# TMDB API 配置（用于电影名标准化）
+tmdb:
+  # TMDB API Key（在 https://www.themoviedb.org/settings/api 申请）
+  api_key: ""
+  # 搜索语言
+  language: "zh-CN"
+
+# NAS Tool 配置
+nas_tool:
+  # NAS Tool 地址
+  base_url: "http://your-nas-ip:3000"
+  # NAS Tool API Key
+  api_key: ""
+  # 默认收藏夹/目录
+  default_directory: ""
+
+# 提取器配置
+extractor:
+  # 是否使用 TMDB 标准化电影名
+  use_tmdb: true
+  # 最低置信度阈值（0-1）
+  confidence_threshold: 0.6
+
+# 日志配置
+logging:
+  level: "INFO"
+  file: "logs/moviebook.log"
+
+# 运行模式
+scheduler:
+  # 是否启用定时运行
+  enabled: false
+  # cron 表达式（默认每天凌晨 2 点）
+  cron: "0 2 * * *"
