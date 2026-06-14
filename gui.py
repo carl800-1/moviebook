@@ -1,7 +1,7 @@
 """
-MovieBook GUI - tkinter 窗口应用 (macOS / Windows 通用)
+MovieBook GUI - tkinter 窗口应用 (macOS / Windows)
 运行: python3 gui.py
-打包: pyinstaller --onefile --name MovieBook gui.py
+打包: pyinstaller --onedir --windowed --name MovieBook gui.py
 """
 import json
 import sys
@@ -14,6 +14,11 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 CONFIG_FILE = PROJECT_ROOT / "config" / "config.json"
+
+# ── 中文字体 ──
+FONT_FAMILY = "PingFang SC"
+FONT_SIZE = 11
+FONT_MONO = "Menlo"
 
 # ─────────────────────────── 配置读写 ───────────────────────────
 
@@ -43,8 +48,6 @@ def save_config(cfg: dict):
 # ─────────────────────────── 登录线程 ───────────────────────────
 
 class LoginThread:
-    """后台执行 B站 Cookie 登录验证。"""
-
     def __init__(self, cookie_str: str, log_callback, done_callback):
         self.cookie_str = cookie_str
         self.log_callback = log_callback
@@ -56,8 +59,9 @@ class LoginThread:
 
     def _run(self):
         try:
-            loop = __import__("asyncio").new_event_loop()
-            __import__("asyncio").set_event_loop(loop)
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
             loop.run_until_complete(self._login())
             loop.close()
         except Exception as e:
@@ -96,8 +100,6 @@ class LoginThread:
 # ─────────────────────────── 运行线程 ───────────────────────────
 
 class PipelineRunner:
-    """后台运行采集管道。"""
-
     def __init__(self, config: dict, credential, log_callback, done_callback):
         self.config = config
         self.credential = credential
@@ -117,12 +119,13 @@ class PipelineRunner:
             self._loop.call_soon_threadsafe(self._task.cancel)
 
     def _run_loop(self):
-        self._loop = __import__("asyncio").new_event_loop()
-        __import__("asyncio").set_event_loop(self._loop)
+        import asyncio
+        self._loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self._loop)
         self._task = self._loop.create_task(self._pipeline())
         try:
             self._loop.run_until_complete(self._task)
-        except (__import__("asyncio").CancelledError, Exception) as e:
+        except (asyncio.CancelledError, Exception) as e:
             if self._running:
                 self.log_callback(f"错误: {e}\n")
         finally:
@@ -150,7 +153,6 @@ class PipelineRunner:
         )
 
         try:
-            # NAS 连通检查
             if self.config.get("nas_url"):
                 log("检查 NAS Tool 连接...\n")
                 try:
@@ -159,7 +161,6 @@ class PipelineRunner:
                 except Exception as e:
                     log(f"NAS Tool 检查失败: {e}\n")
 
-            # 获取关注列表
             log("获取 B站关注列表...\n")
             followings = await bili.get_followings(pn=1, ps=50)
             if not followings:
@@ -207,7 +208,7 @@ class PipelineRunner:
                         log(f"    {len(danmaku)} 条\n")
 
             log(f"\n共收集 {len(all_texts)} 条文本\n")
-            log("提取电影名...\n")
+            log("开始提取电影名...\n")
 
             movies = await extractor.extract_and_normalize(all_texts)
 
@@ -220,7 +221,6 @@ class PipelineRunner:
                 log("未提取到电影名。\n")
                 return
 
-            # 推送到 NAS Tool
             if self.config.get("nas_url") and self.config.get("nas_api_key"):
                 log(f"\n推送 {len(movies)} 个到 NAS Tool...\n")
                 for m in movies:
@@ -252,8 +252,14 @@ class MovieBookApp:
     def __init__(self, root: tk.Tk):
         self.root = root
         self.root.title("MovieBook")
-        self.root.geometry("900x660")
-        self.root.minsize(760, 500)
+        self.root.geometry("920x660")
+        self.root.minsize(780, 520)
+
+        # 全局字体
+        self.font = (FONT_FAMILY, FONT_SIZE)
+        self.font_bold = (FONT_FAMILY, FONT_SIZE, "bold")
+        self.font_mono = (FONT_MONO, 10)
+        self.root.option_add("*Font", self.font)
 
         self._runner = None
         self._credential = None
@@ -314,7 +320,11 @@ class MovieBookApp:
         right = ttk.LabelFrame(middle, text="运行日志", padding=4)
         right.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        self._log = scrolledtext.ScrolledText(right, wrap=tk.WORD, state=tk.DISABLED, font=("Menlo", 11))
+        self._log = scrolledtext.ScrolledText(
+            right, wrap=tk.WORD, state=tk.DISABLED,
+            font=self.font_mono, background="#1e1e1e", foreground="#d4d4d4",
+            insertbackground="#d4d4d4",
+        )
         self._log.pack(fill=tk.BOTH, expand=True)
 
         # ── 底部按钮 ──
@@ -332,7 +342,7 @@ class MovieBookApp:
     def _build_field(self, parent, key, label, row, show=None):
         ttk.Label(parent, text=label).grid(row=row, column=0, sticky=tk.W, pady=2)
         var = tk.StringVar()
-        entry = ttk.Entry(parent, textvariable=var, width=38, show=show or "")
+        entry = ttk.Entry(parent, textvariable=var, width=40, show=show or "")
         entry.grid(row=row, column=1, sticky=tk.EW, pady=2, padx=(6, 0))
         self._cfg_vars[key] = var
 
@@ -382,7 +392,7 @@ class MovieBookApp:
             self._login_btn.config(state=tk.NORMAL)
             if credential:
                 self._credential = credential
-                self._login_status.config(text="已登录", foreground="green")
+                self._login_status.config(text="已登录 ✓", foreground="green")
             else:
                 self._login_status.config(text="登录失败", foreground="red")
         self.root.after(0, _update)
